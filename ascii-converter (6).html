@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCIIfy — Image to ASCII</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #0a0a0f;
+  --bg2:     #10101a;
+  --bg3:     #16162a;
+  --border:  #2a2a48;
+  --border2: #3d3d6e;
+  --purple:  #7c3aed;
+  --purple2: #9d5df5;
+  --purple3: #c4b5fd;
+  --text:    #e8e8f0;
+  --text2:   #9090b8;
+  --text3:   #5a5a88;
+  --success: #22c55e;
+  --font-ui:  'Syne', sans-serif;
+  --font-mono:'Space Mono', monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-ui);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.25;pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;top:-40%;left:50%;transform:translateX(-50%);width:900px;height:600px;background:radial-gradient(ellipse,rgba(124,58,237,.18) 0%,transparent 70%);pointer-events:none;z-index:0;}
+.page{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:0 24px 80px;}
+
+header{padding:48px 0 40px;display:flex;align-items:flex-end;gap:20px;border-bottom:1px solid var(--border);margin-bottom:48px;}
+.logo-mark{width:44px;height:44px;background:var(--purple);border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:13px;font-weight:700;color:#fff;letter-spacing:-1px;flex-shrink:0;}
+h1{font-size:32px;font-weight:800;letter-spacing:-1px;line-height:1;}
+h1 span{color:var(--purple2);}
+.tagline{font-size:13px;color:var(--text3);margin-left:auto;text-align:right;line-height:1.5;font-family:var(--font-mono);}
+
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+@media(max-width:720px){.layout{grid-template-columns:1fr;}}
+
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;}
+.panel-label{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.panel-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+#drop-zone{border:2px dashed var(--border2);border-radius:12px;min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;cursor:pointer;transition:border-color .2s,background .2s;}
+#drop-zone:hover,#drop-zone.over{border-color:var(--purple);background:rgba(124,58,237,.07);}
+#drop-zone .dz-icon{font-size:36px;}
+#drop-zone .dz-title{font-size:15px;font-weight:600;}
+#drop-zone .dz-sub{font-size:12px;color:var(--text3);font-family:var(--font-mono);}
+#drop-zone .dz-btn{margin-top:4px;padding:8px 20px;background:var(--purple);border:none;border-radius:8px;color:#fff;font-family:var(--font-ui);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;}
+#drop-zone .dz-btn:hover{background:var(--purple2);}
+#file-input{display:none;}
+#preview-img{display:none;width:100%;height:220px;object-fit:contain;border-radius:8px;cursor:pointer;}
+
+.controls{margin-top:20px;display:flex;flex-direction:column;gap:16px;}
+.ctrl-row{display:flex;flex-direction:column;gap:6px;}
+.ctrl-head{display:flex;justify-content:space-between;align-items:center;}
+.ctrl-name{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.5px;}
+.ctrl-val{font-family:var(--font-mono);font-size:12px;color:var(--purple3);background:rgba(124,58,237,.12);padding:2px 8px;border-radius:4px;}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:var(--border2);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--purple);border:2px solid var(--bg);transition:background .15s,transform .1s;}
+input[type=range]::-webkit-slider-thumb:hover{background:var(--purple2);transform:scale(1.2);}
+
+.mode-toggle{display:grid;grid-template-columns:1fr 1fr;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:4px;gap:4px;}
+.mode-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:9px 12px;border:none;border-radius:7px;font-family:var(--font-ui);font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--text3);transition:all .18s;}
+.mode-btn .mode-swatch{width:28px;height:16px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:8px;font-weight:700;flex-shrink:0;}
+.mode-btn.dark-mode .mode-swatch{background:#0a0a0f;color:#c4b5fd;border:1px solid var(--border2);}
+.mode-btn.light-mode .mode-swatch{background:#fff;color:#333;border:1px solid #ccc;}
+.mode-btn.active{background:var(--purple);color:#fff;}
+.mode-btn.active.light-mode{background:#e8e8f0;color:#1a1a2e;}
+.mode-btn:hover:not(.active){background:var(--bg2);color:var(--text2);}
+
+#btn-convert{width:100%;margin-top:4px;padding:13px;background:var(--purple);border:none;border-radius:10px;color:#fff;font-family:var(--font-ui);font-size:15px;font-weight:600;cursor:pointer;transition:background .15s,transform .1s,box-shadow .15s;letter-spacing:.3px;}
+#btn-convert:hover{background:var(--purple2);box-shadow:0 0 24px rgba(124,58,237,.45);}
+#btn-convert:active{transform:scale(.98);}
+#btn-convert:disabled{background:var(--border2);color:var(--text3);cursor:not-allowed;box-shadow:none;}
+
+.output-panel{grid-column:1/-1;display:none;}
+.output-panel.visible{display:block;}
+
+.output-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.output-title{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);}
+.output-stats{font-family:var(--font-mono);font-size:11px;color:var(--text3);}
+.output-actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;}
+
+.action-btn{display:flex;align-items:center;gap:6px;padding:7px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-family:var(--font-ui);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.action-btn:hover{border-color:var(--purple);color:var(--purple3);background:rgba(124,58,237,.1);}
+.action-btn.copied{border-color:var(--success);color:var(--success);background:rgba(34,197,94,.08);}
+.action-btn svg{width:13px;height:13px;flex-shrink:0;}
+
+/* output body: ascii + sidebar */
+.output-body{display:grid;grid-template-columns:1fr 210px;gap:20px;align-items:start;}
+@media(max-width:720px){.output-body{grid-template-columns:1fr;}}
+
+#ascii-output{background:#06060e;border:1px solid var(--border);border-radius:12px;padding:20px;font-family:var(--font-mono);font-size:7.5px;line-height:1.1;color:#b8b8e8;white-space:pre;overflow-x:auto;overflow-y:auto;max-height:520px;letter-spacing:.5px;user-select:all;cursor:text;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
+#ascii-output::-webkit-scrollbar{width:6px;height:6px;}
+#ascii-output::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+#ascii-output.light-bg{background:#f0f0f8;color:#1a1a2e;}
+
+/* recommendations */
+.rec-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;position:sticky;top:20px;}
+.rec-title{font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.rec-item{margin-bottom:16px;}
+.rec-item:last-child{margin-bottom:0;}
+.rec-platform{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text);margin-bottom:5px;flex-wrap:wrap;}
+.rec-icon{font-size:14px;}
+.rec-badge{font-family:var(--font-mono);font-size:10px;padding:2px 6px;border-radius:4px;}
+.rec-badge.purple{background:rgba(124,58,237,.15);color:var(--purple3);}
+.rec-badge.green{background:rgba(34,197,94,.1);color:#4ade80;}
+.rec-detail{font-size:11px;color:var(--text3);font-family:var(--font-mono);line-height:1.6;}
+.rec-detail strong{color:var(--text2);}
+.rec-divider{height:1px;background:var(--border);margin:14px 0;}
+
+.empty-state{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);font-family:var(--font-mono);font-size:12px;border:1px dashed var(--border);border-radius:12px;}
+.empty-state .es-ascii{font-size:10px;line-height:1.15;color:var(--border2);text-align:center;opacity:.6;}
+
+.ad-slot{margin:32px 0;border:1px dashed var(--border2);border-radius:10px;padding:16px;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--text3);background:var(--bg2);letter-spacing:1px;}
+footer{margin-top:64px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text3);font-family:var(--font-mono);}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.loading{animation:pulse 1s ease-in-out infinite;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeUp .35s ease forwards;}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="logo-mark">[]</div>
+  <div><h1>ASCII<span>fy</span></h1></div>
+  <div class="tagline">Image → ASCII text<br>Twitch · Kick · Discord · WhatsApp</div>
+</header>
+
+<div class="ad-slot"><!-- GOOGLE ADSENSE 728×90 -->[ AD SPACE — 728×90 ]</div>
+
+<div class="layout">
+
+  <!-- LEFT: Upload + Controls -->
+  <div class="panel">
+    <div class="panel-label">Imagen</div>
+    <div id="drop-zone">
+      <div class="dz-icon">🖼</div>
+      <div class="dz-title">Arrastrá tu imagen acá</div>
+      <div class="dz-sub">PNG · JPG · GIF · WEBP</div>
+      <button class="dz-btn" onclick="document.getElementById('file-input').click()">Elegir archivo</button>
+      <input type="file" id="file-input" accept="image/*">
+    </div>
+    <img id="preview-img" alt="preview">
+
+    <div class="controls">
+      <div class="panel-label" style="margin-bottom:0">Configuración</div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-head">
+          <span class="ctrl-name">ANCHO EN CARACTERES</span>
+          <span class="ctrl-val" id="width-val">80</span>
+        </div>
+        <input type="range" id="slider-width" min="10" max="200" value="80" step="1">
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-head">
+          <span class="ctrl-name">CONTRASTE</span>
+          <span class="ctrl-val" id="contrast-val">1.0×</span>
+        </div>
+        <input type="range" id="slider-contrast" min="0.5" max="2.5" value="1.0" step="0.1">
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-head">
+          <span class="ctrl-name">BRILLO</span>
+          <span class="ctrl-val" id="bright-val">0</span>
+        </div>
+        <input type="range" id="slider-bright" min="-80" max="80" value="0" step="5">
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-head">
+          <span class="ctrl-name">RANGO DE CARACTERES</span>
+          <span class="ctrl-val" id="charset-val">estándar</span>
+        </div>
+        <input type="range" id="slider-charset" min="0" max="2" value="1" step="1">
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-head" style="margin-bottom:8px">
+          <span class="ctrl-name">MODO DE FONDO DEL DESTINO</span>
+        </div>
+        <div class="mode-toggle">
+          <button class="mode-btn dark-mode active" id="mode-dark" onclick="setMode('dark')">
+            <span class="mode-swatch">@#.</span> Fondo oscuro
+          </button>
+          <button class="mode-btn light-mode" id="mode-light" onclick="setMode('light')">
+            <span class="mode-swatch">@#.</span> Fondo claro
+          </button>
+        </div>
+        <div id="mode-hint" style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-top:6px;line-height:1.5;">
+          Caracteres densos = zonas <strong style="color:var(--purple3)">oscuras</strong> — ideal para Twitch, Discord oscuro
+        </div>
+      </div>
+
+      <button id="btn-convert" disabled>CONVERTIR A ASCII</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Preview -->
+  <div class="panel">
+    <div class="panel-label">Vista previa</div>
+    <div id="empty-state" class="empty-state">
+      <div class="es-ascii">@@@@@@@@@@@@@<br>@..........@<br>@. ASCIIfy .@<br>@..........@<br>@@@@@@@@@@@@@</div>
+      <span>Subí una imagen para empezar</span>
+    </div>
+    <canvas id="canvas" style="display:none"></canvas>
+    <div id="preview-ascii" style="display:none;background:#06060e;border:1px solid var(--border);border-radius:12px;padding:14px;font-family:var(--font-mono);font-size:6px;line-height:1.15;color:#b8b8e8;white-space:pre;overflow:hidden;max-height:220px;pointer-events:none;"></div>
+  </div>
+
+  <!-- FULL WIDTH: Output -->
+  <div class="output-panel panel" id="output-panel">
+
+    <div class="output-header">
+      <span class="output-title">Resultado ASCII</span>
+      <span class="output-stats" id="output-stats"></span>
+      <div class="output-actions">
+        <button class="action-btn" id="btn-copy-plain" onclick="doCopy('plain')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="2"/><path d="M4 11H3a2 2 0 01-2-2V3a2 2 0 012-2h6a2 2 0 012 2v1"/></svg>
+          Copiar
+        </button>
+        <button class="action-btn" id="btn-copy-discord" onclick="doCopy('discord')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="2"/><path d="M4 11H3a2 2 0 01-2-2V3a2 2 0 012-2h6a2 2 0 012 2v1"/></svg>
+          Copiar Discord
+        </button>
+        <button class="action-btn" id="btn-copy-whatsapp" onclick="doCopy('whatsapp')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="2"/><path d="M4 11H3a2 2 0 01-2-2V3a2 2 0 012-2h6a2 2 0 012 2v1"/></svg>
+          Copiar WhatsApp
+        </button>
+        <button class="action-btn" onclick="doDownload('plain')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v9M4 7l4 4 4-4"/><path d="M2 13h12"/></svg>
+          Descargar .txt
+        </button>
+        <button class="action-btn" onclick="doDownload('discord')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v9M4 7l4 4 4-4"/><path d="M2 13h12"/></svg>
+          .txt Discord
+        </button>
+        <button class="action-btn" onclick="doDownload('whatsapp')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v9M4 7l4 4 4-4"/><path d="M2 13h12"/></svg>
+          .txt WhatsApp
+        </button>
+      </div>
+    </div>
+
+    <div class="output-body">
+
+      <div id="ascii-output"></div>
+
+      <div class="rec-card">
+        <div class="rec-title">Tamaños sugeridos</div>
+
+        <div class="rec-item">
+          <div class="rec-platform">
+            <span class="rec-icon">🎮</span> Twitch / Kick
+          </div>
+          <div class="rec-detail">
+            <strong>30 – 45</strong> caracteres<br>
+            Sin monoespaciado.<br>
+            Imágenes simples,<br>alto contraste.
+          </div>
+        </div>
+
+        <div class="rec-divider"></div>
+
+        <div class="rec-item">
+          <div class="rec-platform">
+            <span class="rec-icon">💬</span> WhatsApp
+            <span class="rec-badge green">mono ✓</span>
+          </div>
+          <div class="rec-detail">
+            <strong>25 – 40</strong> caracteres<br>
+            Usá "Copiar WhatsApp"<br>
+            para fuente fija.
+          </div>
+        </div>
+
+        <div class="rec-divider"></div>
+
+        <div class="rec-item">
+          <div class="rec-platform">
+            <span class="rec-icon">🎧</span> Discord
+            <span class="rec-badge green">mono ✓</span>
+          </div>
+          <div class="rec-detail">
+            <strong>55 – 80</strong> caracteres<br>
+            Usá "Copiar Discord"<br>
+            para bloque de código.
+          </div>
+        </div>
+
+        <div class="rec-divider"></div>
+
+        <div class="rec-item">
+          <div class="rec-platform">
+            <span class="rec-icon">📋</span> General
+          </div>
+          <div class="rec-detail">
+            <strong>100 – 150</strong> caracteres<br>
+            Foros, Reddit,<br>Pastebin, imprimir.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div class="ad-slot" style="margin-top:32px"><!-- GOOGLE ADSENSE 728×90 -->[ AD SPACE — 728×90 ]</div>
+
+<footer>
+  <span>ASCIIfy — convierte imágenes a texto ASCII</span>
+  <span>compatible con Twitch · Kick · Discord · WhatsApp</span>
+</footer>
+</div>
+
+<script>
+const CHARSETS = [
+  { name:'mínimo',    chars:'@#*+:.  ' },
+  { name:'estándar',  chars:'@#%$&*!=+;:~-,.   ' },
+  { name:'detallado', chars:'@#%$&BWM*oahbdq!+=^;:~-,.   ' },
+];
+let currentCharset = CHARSETS[1].chars;
+let uploadedImage  = null;
+let lastASCII      = '';
+let invertMode     = false;
+
+const dropZone     = document.getElementById('drop-zone');
+const fileInput    = document.getElementById('file-input');
+const previewImg   = document.getElementById('preview-img');
+const canvas       = document.getElementById('canvas');
+const ctx          = canvas.getContext('2d', { willReadFrequently:true });
+const btnConvert   = document.getElementById('btn-convert');
+const outputEl     = document.getElementById('ascii-output');
+const outputPanel  = document.getElementById('output-panel');
+const previewAscii = document.getElementById('preview-ascii');
+const emptyState   = document.getElementById('empty-state');
+const slWidth      = document.getElementById('slider-width');
+const slContrast   = document.getElementById('slider-contrast');
+const slBright     = document.getElementById('slider-bright');
+const slCharset    = document.getElementById('slider-charset');
+
+slWidth.addEventListener('input', () => {
+  document.getElementById('width-val').textContent = slWidth.value;
+  if (uploadedImage) livePreview();
+});
+slContrast.addEventListener('input', () => {
+  document.getElementById('contrast-val').textContent = parseFloat(slContrast.value).toFixed(1) + '×';
+  if (uploadedImage) livePreview();
+});
+slBright.addEventListener('input', () => {
+  document.getElementById('bright-val').textContent = (slBright.value > 0 ? '+' : '') + slBright.value;
+  if (uploadedImage) livePreview();
+});
+slCharset.addEventListener('input', () => {
+  const i = parseInt(slCharset.value);
+  currentCharset = CHARSETS[i].chars;
+  document.getElementById('charset-val').textContent = CHARSETS[i].name;
+  if (uploadedImage) livePreview();
+});
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadFile(f);
+});
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      uploadedImage = img;
+      previewImg.src = e.target.result;
+      previewImg.style.display = 'block';
+      dropZone.style.display = 'none';
+      btnConvert.disabled = false;
+      livePreview();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+previewImg.addEventListener('click', () => fileInput.click());
+
+function imageToASCII(img, width, contrast, brightness, chars, invert) {
+  const h = Math.round((img.height / img.width) * width * 0.45);
+  canvas.width = width; canvas.height = h;
+  ctx.filter = `contrast(${contrast}) brightness(${1 + brightness / 100})`;
+  ctx.drawImage(img, 0, 0, width, h);
+  ctx.filter = 'none';
+  const data = ctx.getImageData(0, 0, width, h).data;
+  const rows = [];
+  for (let y = 0; y < h; y++) {
+    let row = '';
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const lum = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+      const idx = Math.floor((lum / 255) * (chars.length - 1));
+      row += chars[invert ? idx : (chars.length - 1 - idx)];
+    }
+    rows.push(row);
+  }
+  return rows.join('\n');
+}
+
+function livePreview() {
+  if (!uploadedImage) return;
+  const ascii = imageToASCII(uploadedImage, 50,
+    parseFloat(slContrast.value), parseInt(slBright.value), currentCharset, invertMode);
+  emptyState.style.display = 'none';
+  previewAscii.style.display = 'block';
+  previewAscii.style.background = invertMode ? '#f5f5f5' : '#06060e';
+  previewAscii.style.color      = invertMode ? '#1a1a2e' : '#b8b8e8';
+  previewAscii.textContent = ascii;
+}
+
+btnConvert.addEventListener('click', () => {
+  if (!uploadedImage) return;
+  btnConvert.textContent = 'GENERANDO…';
+  btnConvert.classList.add('loading');
+  btnConvert.disabled = true;
+  setTimeout(() => {
+    lastASCII = imageToASCII(
+      uploadedImage, parseInt(slWidth.value),
+      parseFloat(slContrast.value), parseInt(slBright.value),
+      currentCharset, invertMode
+    );
+    outputEl.textContent = lastASCII;
+    invertMode ? outputEl.classList.add('light-bg') : outputEl.classList.remove('light-bg');
+    outputPanel.classList.add('visible', 'fade-in');
+    const lines = lastASCII.split('\n').length;
+    document.getElementById('output-stats').textContent =
+      `${parseInt(slWidth.value)} chars · ${lines} líneas`;
+    btnConvert.textContent = 'CONVERTIR A ASCII';
+    btnConvert.classList.remove('loading');
+    btnConvert.disabled = false;
+    outputPanel.scrollIntoView({ behavior:'smooth', block:'start' });
+  }, 40);
+});
+
+function setMode(mode) {
+  invertMode = (mode === 'light');
+  document.getElementById('mode-dark').classList.toggle('active', !invertMode);
+  document.getElementById('mode-light').classList.toggle('active', invertMode);
+  document.getElementById('mode-hint').innerHTML = invertMode
+    ? 'Caracteres densos = zonas <strong style="color:var(--purple3)">claras</strong> — ideal para WhatsApp, Telegram, Discord claro'
+    : 'Caracteres densos = zonas <strong style="color:var(--purple3)">oscuras</strong> — ideal para Twitch, Discord oscuro';
+  if (uploadedImage) livePreview();
+}
+
+function formatFor(type) {
+  if (!lastASCII) return null;
+  return (type === 'discord' || type === 'whatsapp') ? '```\n' + lastASCII + '\n```' : lastASCII;
+}
+
+const COPY_LABELS = { plain:'Copiar', discord:'Copiar Discord', whatsapp:'Copiar WhatsApp' };
+const COPY_IDS    = { plain:'btn-copy-plain', discord:'btn-copy-discord', whatsapp:'btn-copy-whatsapp' };
+
+function doCopy(type) {
+  const text = formatFor(type);
+  if (!text) return;
+  const btn = document.getElementById(COPY_IDS[type]);
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8l4 4 8-8"/></svg> ¡Copiado!`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="2"/><path d="M4 11H3a2 2 0 01-2-2V3a2 2 0 012-2h6a2 2 0 012 2v1"/></svg> ${COPY_LABELS[type]}`;
+    }, 2500);
+  });
+}
+
+const DL_NAMES = { plain:'asciify.txt', discord:'asciify-discord.txt', whatsapp:'asciify-whatsapp.txt' };
+
+function doDownload(type) {
+  const text = formatFor(type);
+  if (!text) return;
+  const blob = new Blob([text], { type:'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = DL_NAMES[type]; a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
